@@ -9,3 +9,7 @@ __pycache__/
 
 # secrets
 .env
+
+.env
+*.pt
+input.txt
