@@ -1,0 +1,11 @@
+# models / data
+*.pt
+*.bin
+*.safetensors
+input.txt
+__pycache__/
+*.pyc
+.venv/
+
+# secrets
+.env
