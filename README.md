@@ -25,3 +25,7 @@ python3 train.py
 
 ## Next: GPU stage -> n_layer=12, batch 32, cuda
 >>>>>>> 5ac3a79 (feat: CPU prototype working - torch 2.15 cpu, 6.8M model, val 5.67 @ 280 steps)
+
+## 🚀 Live Demo
+Try it here: https://huggingface.co/spaces/grahamonlineedu-wq/llm-prototype
+
