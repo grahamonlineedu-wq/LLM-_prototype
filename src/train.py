@@ -1,11 +1,16 @@
-import torch, tiktoken, os, requests
-from main import TinyLLM, Config
+import os
+import sys
+import torch
+import tiktoken
+import requests
+sys.path.append('src')
+from model import TinyLLM, Config
 
 enc = tiktoken.get_encoding("gpt2")
 config = Config()
 config.block_size = 128
 
-# Download tiny shakespeare (~1MB, perfect for phone CPU)
+# Download tiny shakespeare
 if not os.path.exists("input.txt"):
     print("Downloading data...")
     url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
@@ -17,7 +22,6 @@ print(f"Dataset {len(text)} chars")
 data_ids = enc.encode(text)
 print(f"{len(data_ids)} tokens")
 
-# Train/val split
 n = int(0.9 * len(data_ids))
 train_data = torch.tensor(data_ids[:n], dtype=torch.long)
 val_data = torch.tensor(data_ids[n:], dtype=torch.long)
@@ -30,29 +34,38 @@ def get_batch(split, batch_size=4):
     return x, y
 
 model = TinyLLM(config)
+
+# --- RESUME LOGIC ---
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--resume', action='store_true')
+parser.add_argument('--from', dest='from_step', type=int, default=0)
+args = parser.parse_args()
+
+if args.resume and os.path.exists("checkpoints/tinyllm.pt"):
+    print(f"Resuming from checkpoints/tinyllm.pt")
+    model.load_state_dict(torch.load("checkpoints/tinyllm.pt", map_location='cpu'))
+
 opt = torch.optim.AdamW(model.parameters(), lr=3e-4)
 print(f"Training {sum(p.numel() for p in model.parameters())/1e6:.2f}M params on CPU...")
 
-for step in range(300): # increase to 2000 later
+for step in range(300):
     xb, yb = get_batch('train')
     logits, loss = model(xb, yb)
     opt.zero_grad()
     loss.backward()
     opt.step()
     if step % 20 == 0:
-        # val loss
         model.eval()
         with torch.no_grad():
             xv, yv = get_batch('val')
             _, vloss = model(xv, yv)
         model.train()
         print(f"step {step} train {loss.item():.3f} val {vloss.item():.3f}")
-
-        # sample
         prompt = "Hello"
         ids = torch.tensor([enc.encode(prompt)], dtype=torch.long)
         out = model.generate(ids, max_new_tokens=60)
         print("SAMPLE:", enc.decode(out[0].tolist())[:150], "\n")
 
-torch.save(model.state_dict(), "tinyllm.pt")
-print("Saved tinyllm.pt")
+torch.save(model.state_dict(), "checkpoints/tinyllm.pt")
+print("Saved checkpoints/tinyllm.pt")
